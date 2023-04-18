@@ -9,3 +9,88 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Club {
+  initials String @id
+  name     String @unique
+  Teams    Team[]
+
+  @@map("clubs")
+}
+
+model Team {
+  id           String        @id @default(cuid())
+  clubInitials String        @map("club_initials")
+  designation  String
+  Club         Club          @relation(fields: [clubInitials], references: [initials])
+  HomeMatches  Match[]       @relation("homeTeam")
+  AwayMatches  Match[]       @relation("awayTeam")
+  MatchPlayers MatchPlayer[]
+
+  @@unique([clubInitials, designation])
+  @@map("teams")
+}
+
+model Agent {
+  fpcId         Int      @id @map("fpc_id")
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  SeasonPlayers Player[]
+
+  @@map("agents")
+}
+
+model Player {
+  fpcId       Int           @id @map("fpc_id")
+  Agent       Agent         @relation(fields: [fpcId], references: [fpcId])
+  MatchPlayer MatchPlayer[]
+
+  @@map("players")
+}
+
+model Match {
+  id            String        @id @default(cuid())
+  season        String
+  number        Int
+  competition   String
+  date          DateTime
+  homeTeamId    String        @map("home_team_id")
+  awayTeamId    String        @map("away_team_id")
+  homeTeamScore Int           @map("home_team_score") // >= 0
+  awayTeamScore Int           @map("away_team_score") // >= 0
+  HomeTeam      Team          @relation(name: "homeTeam", fields: [homeTeamId], references: [id])
+  AwayTeam      Team          @relation(name: "awayTeam", fields: [awayTeamId], references: [id])
+  MatchPlayer   MatchPlayer[]
+
+  @@unique([season, number])
+  @@map("matches")
+}
+
+model MatchPlayer {
+  id                    String                  @id @default(cuid())
+  matchId               String                  @map("match_id")
+  playerFpcId           Int                     @map("player_fpc_id")
+  jerseyNumber          Int                     @map("jersey_number")
+  teamId                String                  @map("team_id")
+  Match                 Match                   @relation(fields: [matchId], references: [id])
+  Player                Player                  @relation(fields: [playerFpcId], references: [fpcId])
+  Team                  Team                    @relation(fields: [teamId], references: [id])
+  MatchPlayerStatistics MatchPlayerStatistics[]
+
+  @@unique([matchId, playerFpcId])
+  @@unique([matchId, playerFpcId, teamId])
+  @@map("match_players")
+}
+
+model MatchPlayerStatistics {
+  id            String      @id @default(cuid())
+  matchPlayerId String      @map("match_player_id")
+  minutes       Int         @default(0) // >= 0
+  goals         Int         @default(0) // >= 0
+  yellowCards   Int         @default(0) @map("yellow_cards") // >= 0
+  redCards      Int         @default(0) @map("red_cards") // >= 0
+  whiteCards    Int         @default(0) @map("white_cards") // >= 0
+  MatchPlayer   MatchPlayer @relation(fields: [matchPlayerId], references: [id])
+
+  @@map("match_player_statistics")
+}
